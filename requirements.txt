@@ -1,0 +1,35 @@
+# ============================================================
+# INSIS API — Dependencias de producción
+# ============================================================
+
+# Framework
+Django~=5.2.0
+djangorestframework==3.16.*
+
+# Auth JWT
+djangorestframework-simplejwt==5.5.*
+
+# Documentación OpenAPI
+drf-spectacular==0.29.*
+
+# Tareas asíncronas
+celery[redis]==5.6.*
+django-celery-beat==2.9.*
+
+# Base de datos MySQL
+mysqlclient==2.2.*
+
+# Configuración
+python-decouple>=3.8
+
+# Filtros
+django-filter==25.*
+
+# Reportes Excel
+openpyxl>=3.1.5
+
+# Servidor WSGI
+gunicorn==23.0.*
+
+# Redis client (también requerido por celery[redis], explicitado para entrypoint)
+redis>=5.0

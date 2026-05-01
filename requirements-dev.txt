@@ -1,0 +1,25 @@
+# ============================================================
+# INSIS API — Dependencias de desarrollo
+# ============================================================
+# Instalar: pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+# Testing
+pytest-django>=4.9
+pytest-mock>=3.14
+
+# Factories
+factory-boy>=3.3
+
+# Cobertura
+coverage>=7.6
+
+# Linting
+flake8>=7.1
+
+# Formateo
+black>=25.0
+
+# Ordenamiento de imports
+isort>=6.0

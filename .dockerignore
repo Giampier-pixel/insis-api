@@ -1,0 +1,29 @@
+# ============================================================
+# INSIS API — .dockerignore
+# ============================================================
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+venv
+.venv
+htmlcov
+.coverage
+.pytest_cache
+.mypy_cache
+*.md
+!README.md
+.vscode
+.idea
+docker-compose*.yml
+cloudbuild.yaml
+.dockerignore
+Dockerfile

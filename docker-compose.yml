@@ -1,0 +1,126 @@
+# ============================================================
+# INSIS API — Docker Compose (desarrollo local)
+# ============================================================
+# 6 servicios: web, db, redis, celery_worker, celery_beat, flower
+# ============================================================
+
+services:
+
+  # --- MySQL 8.4 LTS ---
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_dev_password}
+      MYSQL_DATABASE: ${DB_NAME:-insis_db}
+      MYSQL_USER: ${DB_USER:-insis_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-insis_dev_password}
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_dev_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+  # --- Redis 8 ---
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # --- Django + Gunicorn (web) ---
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8080
+      --workers 2
+      --timeout 120
+      --reload
+      --access-logfile -
+      --error-logfile -
+
+  # --- Celery Worker ---
+  celery_worker:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A config worker
+      --loglevel=info
+      --concurrency=4
+
+  # --- Celery Beat (scheduler) ---
+  celery_beat:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A config beat
+      --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  # --- Flower (Celery dashboard — solo dev) ---
+  flower:
+    image: mher/flower
+    restart: unless-stopped
+    ports:
+      - "5556:5555"
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      FLOWER_PORT: 5555
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  redis_data:
+  static_data:
+  media_data:
