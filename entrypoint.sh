@@ -30,9 +30,15 @@ max_retries = 30
 retry = 0
 while retry < max_retries:
     try:
-        conn = MySQLdb.connect(
-            host=host, port=port, user=user, passwd=password, db=db_name
-        )
+        # Unix socket path (Cloud Run / Cloud SQL) vs TCP host (Docker local)
+        if host.startswith("/"):
+            conn = MySQLdb.connect(
+                unix_socket=host, user=user, passwd=password, db=db_name
+            )
+        else:
+            conn = MySQLdb.connect(
+                host=host, port=port, user=user, passwd=password, db=db_name
+            )
         conn.close()
         print(f"✅ Database is ready! (attempt {retry + 1})")
         sys.exit(0)
@@ -45,17 +51,22 @@ while retry < max_retries:
         time.sleep(2)
 EOF
 
-# --- Wait for Redis ---
+# --- Wait for Redis (optional: skip if no broker URL configured) ---
 echo "Waiting for Redis..."
 python << 'EOF'
 import time
 import sys
+import os
 
 try:
     import redis
     from decouple import config
 
-    broker_url = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
+    broker_url = config("CELERY_BROKER_URL", default="")
+    if not broker_url:
+        print("⚠️  CELERY_BROKER_URL not set, skipping Redis check")
+        sys.exit(0)
+
     r = redis.from_url(broker_url)
 
     max_retries = 15
@@ -68,8 +79,8 @@ try:
         except Exception as e:
             retry += 1
             if retry >= max_retries:
-                print(f"❌ Redis not available after {max_retries} attempts: {e}")
-                sys.exit(1)
+                print(f"⚠️  Redis not available, continuing anyway: {e}")
+                sys.exit(0)
             print(f"⏳ Redis not ready (attempt {retry}/{max_retries}), retrying in 1s...")
             time.sleep(1)
 except ImportError:

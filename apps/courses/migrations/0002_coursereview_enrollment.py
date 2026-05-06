@@ -1,0 +1,24 @@
+import django.db.models.deletion
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("courses", "0001_initial"),
+        ("enrollments", "0001_initial"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="coursereview",
+            name="enrollment",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="reviews",
+                to="enrollments.enrollment",
+            ),
+        ),
+    ]

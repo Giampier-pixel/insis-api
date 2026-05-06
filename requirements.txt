@@ -27,9 +27,19 @@ django-filter==25.*
 
 # Reportes Excel
 openpyxl>=3.1.5
+google-cloud-storage>=2.19
+
+# Image processing (avatars)
+Pillow>=11.0
 
 # Servidor WSGI
 gunicorn==23.0.*
+
+# Static files (producción — WhiteNoise sirve estáticos sin Nginx)
+whitenoise>=6.8
+
+# CORS headers (permisos cross-origin para el frontend)
+django-cors-headers>=4.6
 
 # Redis client (también requerido por celery[redis], explicitado para entrypoint)
 redis>=5.0

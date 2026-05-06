@@ -1,0 +1,56 @@
+steps:
+  # 1. Build Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:latest
+      - .
+
+  # 2. Push image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - push
+      - --all-tags
+      - us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api
+
+  # 3. Run Django migrations via Cloud Run Job (update existing job image)
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - migrate-job
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:$COMMIT_SHA
+      - --region=us-central1
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - migrate-job
+      - --region=us-central1
+      - --wait
+
+  # 4. Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - insis-api
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:$COMMIT_SHA
+      - --region=us-central1
+      - --platform=managed
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/insis-repo/insis-api:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
