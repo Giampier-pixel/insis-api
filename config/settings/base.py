@@ -6,7 +6,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -36,6 +35,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
@@ -45,15 +45,15 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     # Apps will be added here as they are built (F2):
-    # "apps.core",
-    # "apps.users",
-    # "apps.courses",
-    # "apps.enrollments",
-    # "apps.quizzes",
-    # "apps.companies",
-    # "apps.assignments",
-    # "apps.reports",
-    # "apps.notifications",
+    "apps.core",
+    "apps.users",
+    "apps.companies",
+    "apps.courses",
+    "apps.enrollments",
+    "apps.quizzes",
+    "apps.assignments",
+    "apps.reports",
+    "apps.notifications",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -63,6 +63,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ============================================================
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -99,7 +100,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ============================================================
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -129,6 +133,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+USE_GCS = config("USE_GCS", default=False, cast=bool)
+GCS_BUCKET_NAME = config("GCS_BUCKET_NAME", default="")
+
 # ============================================================
 # Default primary key field type
 # ============================================================
@@ -137,7 +144,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ============================================================
 # Custom User Model (will be set when users app is built)
 # ============================================================
-# AUTH_USER_MODEL = "users.CustomUser"
+AUTH_USER_MODEL = "users.CustomUser"
 
 # ============================================================
 # Django REST Framework
@@ -146,9 +153,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
@@ -202,6 +207,8 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 300  # 5 minutes hard limit
 CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes soft limit
+CELERY_TASK_PUBLISH_RETRY = False
+CELERY_BROKER_CONNECTION_TIMEOUT = 2
 
 # ============================================================
 # Email

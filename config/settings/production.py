@@ -57,6 +57,15 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ============================================================
+# CORS (producción)
+# ============================================================
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="",
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
+)
+
+# ============================================================
 # GCS (reports)
 # ============================================================
 USE_GCS = config("USE_GCS", default=True, cast=bool)
