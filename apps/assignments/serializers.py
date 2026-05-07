@@ -8,6 +8,9 @@ class CompletionRecordSerializer(serializers.ModelSerializer):
     employee_email = serializers.EmailField(
         source="employee.user.email", read_only=True
     )
+    employee_full_name = serializers.CharField(
+        source="employee.user.full_name", read_only=True
+    )
 
     class Meta:
         model = CompletionRecord
@@ -15,6 +18,7 @@ class CompletionRecordSerializer(serializers.ModelSerializer):
             "id",
             "employee",
             "employee_email",
+            "employee_full_name",
             "completed",
             "completed_at",
             "score",
@@ -26,11 +30,14 @@ class AssignmentTargetSerializer(serializers.ModelSerializer):
     employee_email = serializers.EmailField(
         source="employee.user.email", read_only=True
     )
+    employee_full_name = serializers.CharField(
+        source="employee.user.full_name", read_only=True
+    )
     completion = CompletionRecordSerializer(source="completion_record", read_only=True)
 
     class Meta:
         model = AssignmentTarget
-        fields = ("id", "employee", "employee_email", "completion")
+        fields = ("id", "employee", "employee_email", "employee_full_name", "completion")
         read_only_fields = fields
 
 
@@ -39,6 +46,9 @@ class AssignmentSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True)
     assigned_by_email = serializers.EmailField(
         source="assigned_by.email", read_only=True
+    )
+    assigned_by_name = serializers.CharField(
+        source="assigned_by.full_name", read_only=True
     )
     total_targets = serializers.SerializerMethodField()
     completed_targets = serializers.SerializerMethodField()
@@ -53,6 +63,7 @@ class AssignmentSerializer(serializers.ModelSerializer):
             "company",
             "company_name",
             "assigned_by_email",
+            "assigned_by_name",
             "scope",
             "due_date",
             "is_mandatory",

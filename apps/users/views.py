@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+
 from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -7,6 +9,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.users.models import Roles
+from apps.users.permissions import IsAdmin
 from apps.users.serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
@@ -16,6 +20,8 @@ from apps.users.serializers import (
     TokenPairSerializer,
     UserSerializer,
 )
+
+User = get_user_model()
 
 
 class RegisterView(APIView):
@@ -114,3 +120,48 @@ class ChangePasswordView(APIView):
         return Response(
             {"detail": "Password updated successfully."}, status=status.HTTP_200_OK
         )
+
+
+class UserListView(APIView):
+    permission_classes = (IsAdmin,)
+
+    @extend_schema(tags=["admin"])
+    def get(self, request):
+        users = User.objects.all().order_by("full_name")
+        data = [
+            {
+                "id": u.id,
+                "email": u.email,
+                "full_name": u.full_name,
+                "role": u.role,
+                "is_active": u.is_active,
+            }
+            for u in users
+        ]
+        return Response(data)
+
+    @extend_schema(tags=["admin"])
+    def patch(self, request):
+        user_id = request.data.get("id")
+        if not user_id:
+            return Response({"id": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        allowed = {"full_name", "role", "is_active"}
+        for field in allowed & set(request.data.keys()):
+            setattr(user, field, request.data[field])
+        user.save()
+
+        if "role" in request.data and request.data["role"] not in [r.value for r in Roles]:
+            return Response({"role": ["Invalid role."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active,
+        })

@@ -46,9 +46,14 @@ class CompanyViewSet(viewsets.ModelViewSet):
         return Company.objects.all()
 
     def get_permissions(self):
-        if self.action in ("list", "create", "partial_update", "destroy"):
+        if self.action in ("create", "partial_update", "destroy"):
             return [IsAdmin()]
         return [IsAuthenticated()]
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role not in (Roles.ADMIN, Roles.HR_MANAGER):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
         company = self.get_object()
@@ -75,6 +80,31 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer.save(company=company)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(
+        detail=True,
+        methods=["patch", "delete"],
+        url_path=r"departments/(?P<dept_pk>[^/.]+)",
+    )
+    def department_detail(self, request, pk=None, dept_pk=None):
+        from django.shortcuts import get_object_or_404
+
+        company = self.get_object()
+        is_admin = request.user.role == Roles.ADMIN
+        is_hr = _is_hr_of_company(request.user, company)
+        if not (is_admin or is_hr):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        department = get_object_or_404(Department, pk=dept_pk, company=company)
+
+        if request.method == "DELETE":
+            department.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = DepartmentSerializer(department, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         company = self.get_object()
@@ -93,7 +123,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
 class EmployeeViewSet(viewsets.GenericViewSet):
     serializer_class = EmployeeSerializer
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -223,17 +253,48 @@ class EmployeeViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(serializer.data)
 
-    @action(detail=False, methods=["post"], url_path="bulk-import")
-    def bulk_import(self, request):
-        if request.user.role != Roles.HR_MANAGER:
+    def destroy(self, request, pk=None):
+        from django.shortcuts import get_object_or_404
+
+        if request.user.role not in (Roles.ADMIN, Roles.HR_MANAGER):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        company = self._hr_company(request.user)
-        if company is None:
-            return Response(
-                {"detail": "You are not an HR Manager of any company."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        employee = get_object_or_404(self.get_queryset(), pk=pk)
+
+        if request.user.role == Roles.HR_MANAGER and not _is_hr_of_company(
+            request.user, employee.company
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        employee.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="bulk-import")
+    def bulk_import(self, request):
+        if request.user.role not in (Roles.ADMIN, Roles.HR_MANAGER):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        if request.user.role == Roles.ADMIN:
+            company_id = request.data.get("company")
+            if not company_id:
+                return Response(
+                    {"company": ["This field is required."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                company = Company.objects.get(pk=company_id)
+            except Company.DoesNotExist:
+                return Response(
+                    {"company": ["Company not found."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            company = self._hr_company(request.user)
+            if company is None:
+                return Response(
+                    {"detail": "You are not an HR Manager of any company."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         serializer = EmployeeBulkImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

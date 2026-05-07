@@ -33,9 +33,12 @@ class TestCompanyViewSet:
         resp = auth_client(self.admin).get("/api/v1/companies/")
         assert resp.status_code == 200
 
-    def test_hr_cannot_list_companies(self):
+    def test_hr_can_list_own_companies(self):
         resp = auth_client(self.hr).get("/api/v1/companies/")
-        assert resp.status_code == 403
+        assert resp.status_code == 200
+        results = resp.data.get("results", resp.data)
+        ids = [c["id"] for c in results]
+        assert self.company.pk in ids
 
     def test_student_cannot_list_companies(self):
         resp = auth_client(self.student).get("/api/v1/companies/")

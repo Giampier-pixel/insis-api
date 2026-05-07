@@ -15,4 +15,5 @@ urlpatterns = [
         views.ChangePasswordView.as_view(),
         name="auth-change-password",
     ),
+    path("users/", views.UserListView.as_view(), name="user-list"),
 ]
