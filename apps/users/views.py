@@ -125,43 +125,52 @@ class ChangePasswordView(APIView):
 class UserListView(APIView):
     permission_classes = (IsAdmin,)
 
+    def _user_data(self, u):
+        from apps.companies.models import Employee
+        emp = (
+            Employee.objects.filter(user=u)
+            .select_related("company", "department")
+            .first()
+        )
+        return {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name or u.email.split("@")[0],
+            "role": u.role,
+            "is_active": u.is_active,
+            "company": emp.company.name if emp and emp.company else None,
+            "company_id": emp.company.pk if emp and emp.company else None,
+            "department": emp.department.name if emp and emp.department else None,
+            "department_id": emp.department.pk if emp and emp.department else None,
+        }
+
     @extend_schema(tags=["admin"])
     def get(self, request):
         users = User.objects.all().order_by("full_name")
-        data = [
-            {
-                "id": u.id,
-                "email": u.email,
-                "full_name": u.full_name,
-                "role": u.role,
-                "is_active": u.is_active,
-            }
-            for u in users
-        ]
-        return Response(data)
+        return Response([self._user_data(u) for u in users])
 
     @extend_schema(tags=["admin"])
     def patch(self, request):
         user_id = request.data.get("id")
         if not user_id:
-            return Response({"id": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"id": ["This field is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+        if "role" in request.data and request.data["role"] not in [
+            r.value for r in Roles
+        ]:
+            return Response(
+                {"role": ["Invalid role."]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         allowed = {"full_name", "role", "is_active"}
         for field in allowed & set(request.data.keys()):
             setattr(user, field, request.data[field])
         user.save()
-
-        if "role" in request.data and request.data["role"] not in [r.value for r in Roles]:
-            return Response({"role": ["Invalid role."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role,
-            "is_active": user.is_active,
-        })
+        return Response(self._user_data(user))

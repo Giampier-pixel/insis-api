@@ -50,6 +50,7 @@ class CompanySerializer(serializers.ModelSerializer):
 class EmployeeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email", read_only=True)
     full_name = serializers.CharField(source="user.full_name", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True)
     department_name = serializers.CharField(
         source="department.name", read_only=True, allow_null=True
     )
@@ -62,6 +63,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "email",
             "full_name",
             "company",
+            "company_name",
             "department",
             "department_name",
             "is_hr_manager",
@@ -74,6 +76,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "company",
             "email",
             "full_name",
+            "company_name",
             "department_name",
             "created_at",
             "updated_at",
