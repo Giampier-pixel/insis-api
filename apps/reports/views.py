@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.companies.models import Company
 from apps.reports.data import (
     company_summary,
     completion_by_department,
@@ -99,20 +100,35 @@ class ReportsViewSet(viewsets.GenericViewSet):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        return serializer.validated_data["company"]
+        company = serializer.validated_data.get("company")
+        if company is None and request.user.role == Roles.ADMIN:
+            company = Company.objects.first()
+        return company
 
     @action(detail=False, methods=["get"], url_path="company-summary")
     def company_summary(self, request):
-        return Response(company_summary(self._company(request)))
+        company = self._company(request)
+        if company is None:
+            return Response([])
+        return Response(company_summary(company))
 
     @action(detail=False, methods=["get"], url_path="completion-by-department")
     def completion_by_department(self, request):
-        return Response(completion_by_department(self._company(request)))
+        company = self._company(request)
+        if company is None:
+            return Response([])
+        return Response(completion_by_department(company))
 
     @action(detail=False, methods=["get"], url_path="employee-ranking")
     def employee_ranking(self, request):
-        return Response(employee_ranking(self._company(request)))
+        company = self._company(request)
+        if company is None:
+            return Response([])
+        return Response(employee_ranking(company))
 
     @action(detail=False, methods=["get"], url_path="overdue-assignments")
     def overdue_assignments(self, request):
-        return Response(overdue_assignments(self._company(request)))
+        company = self._company(request)
+        if company is None:
+            return Response([])
+        return Response(overdue_assignments(company))

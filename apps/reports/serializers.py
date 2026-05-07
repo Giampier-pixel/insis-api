@@ -64,9 +64,15 @@ class ReportExportJobSerializer(serializers.ModelSerializer):
 
 
 class ReportQuerySerializer(serializers.Serializer):
-    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+    company = serializers.PrimaryKeyRelatedField(
+        queryset=Company.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     def validate_company(self, company):
+        if company is None:
+            return None
         request = self.context["request"]
         if not user_can_access_company(request.user, company):
             raise serializers.ValidationError(
