@@ -44,18 +44,16 @@ jobs:
           docker push ${{ env.IMAGE }}:${{ github.sha }}
           docker push ${{ env.IMAGE }}:latest
 
-      - name: Run migrations (fresh start — drops old tables, migrates clean)
+      - name: Run migrations
         run: |
           gcloud run jobs update ${{ env.JOB }} \
             --image=${{ env.IMAGE }}:${{ github.sha }} \
-            --args="manage.py,fresh_start" \
+            --command="python" \
+            --args="manage.py,migrate" \
             --region=${{ env.REGION }}
           gcloud run jobs execute ${{ env.JOB }} \
             --region=${{ env.REGION }} \
             --wait
-          gcloud run jobs update ${{ env.JOB }} \
-            --args="manage.py,migrate" \
-            --region=${{ env.REGION }}
 
       - name: Deploy to Cloud Run
         run: |
