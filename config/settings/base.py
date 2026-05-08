@@ -221,5 +221,5 @@ if _broker.startswith("rediss://"):
 RESEND_API_KEY = config("RESEND_API_KEY", default="")
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
-    default="INSIS <onboarding@resend.dev>",
+    default="INSIS <noreply@sysifdev.com>",
 )

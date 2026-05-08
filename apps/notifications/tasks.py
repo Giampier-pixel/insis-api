@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.notifications.email_client import send_email
 from apps.notifications.models import EmailNotification
 
-ADMIN_FROM_EMAIL = "INSIS <giampieraliagaesquivel@gmail.com>"
+ADMIN_FROM_EMAIL = "INSIS <noreply@sysifdev.com>"
 
 
 def _record(user, subject, notification_type, context):
