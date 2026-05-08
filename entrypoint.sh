@@ -83,8 +83,9 @@ try:
                 sys.exit(0)
             print(f"⏳ Redis not ready (attempt {retry}/{max_retries}), retrying in 1s...")
             time.sleep(1)
-except ImportError:
-    print("⚠️  redis-py not installed, skipping Redis check")
+except (ImportError, ValueError) as e:
+    print(f"⚠️  Redis check skipped: {e}")
+    sys.exit(0)
 EOF
 
 echo "============================================"
