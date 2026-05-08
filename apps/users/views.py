@@ -111,7 +111,7 @@ class UserListView(APIView):
 
     @extend_schema(tags=["admin"])
     def get(self, request):
-        users = User.objects.exclude(role="STUDENT").order_by("full_name")
+        users = User.objects.all().order_by("full_name")
         return Response(UserAdminSerializer(users, many=True).data)
 
     @extend_schema(tags=["admin"], request=UserAdminSerializer)
@@ -126,7 +126,7 @@ class UserDetailView(APIView):
     permission_classes = (IsAdmin,)
 
     def _get_user(self, pk):
-        return get_object_or_404(User.objects.exclude(role="STUDENT"), pk=pk)
+        return get_object_or_404(User, pk=pk)
 
     @extend_schema(tags=["admin"])
     def patch(self, request, pk):
