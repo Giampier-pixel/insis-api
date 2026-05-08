@@ -25,12 +25,11 @@ python-decouple>=3.8
 # Filtros
 django-filter==25.*
 
-# Reportes Excel
-openpyxl>=3.1.5
-google-cloud-storage>=2.19
+# Email transaccional
+resend>=2.0
 
-# Image processing (avatars)
-Pillow>=11.0
+# Generación de PDFs (certificados)
+reportlab>=4.0
 
 # Servidor WSGI
 gunicorn==23.0.*

@@ -44,15 +44,11 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    # Apps will be added here as they are built (F2):
     "apps.core",
     "apps.users",
-    "apps.companies",
     "apps.courses",
     "apps.enrollments",
     "apps.quizzes",
-    "apps.assignments",
-    "apps.reports",
     "apps.notifications",
 ]
 
@@ -211,13 +207,10 @@ CELERY_TASK_PUBLISH_RETRY = False
 CELERY_BROKER_CONNECTION_TIMEOUT = 2
 
 # ============================================================
-# Email
+# Email — Resend
 # ============================================================
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
-)
+RESEND_API_KEY = config("RESEND_API_KEY", default="")
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
-    default="INSIS <noreply@insis.com>",
+    default="INSIS <onboarding@resend.dev>",
 )

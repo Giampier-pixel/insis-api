@@ -1,31 +1,13 @@
 from rest_framework import serializers
 
-from apps.enrollments.models import Enrollment, LessonProgress
-
-
-class LessonProgressSerializer(serializers.ModelSerializer):
-    lesson_title = serializers.CharField(source="lesson.title", read_only=True)
-    lesson_order = serializers.IntegerField(source="lesson.order", read_only=True)
-
-    class Meta:
-        model = LessonProgress
-        fields = (
-            "id",
-            "lesson",
-            "lesson_title",
-            "lesson_order",
-            "completed",
-            "completed_at",
-            "time_spent_seconds",
-        )
-        read_only_fields = ("id", "completed_at")
+from apps.enrollments.models import Certificate, Enrollment
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source="course.title", read_only=True)
     course_slug = serializers.SlugField(source="course.slug", read_only=True)
     student_email = serializers.EmailField(source="student.email", read_only=True)
-    progress_pct = serializers.SerializerMethodField()
+    quiz_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Enrollment
@@ -35,32 +17,38 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "course",
             "course_title",
             "course_slug",
-            "source",
             "enrolled_at",
             "is_active",
             "completed",
             "completed_at",
-            "progress_pct",
+            "quiz_progress",
         )
         read_only_fields = (
             "id",
             "student_email",
             "course_title",
             "course_slug",
-            "source",
             "enrolled_at",
             "completed",
             "completed_at",
         )
 
-    def get_progress_pct(self, obj) -> float | None:
-        total = getattr(obj, "total_lessons", None)
-        done = getattr(obj, "completed_lessons", None)
-        if total is None or done is None:
-            return None
-        if total == 0:
-            return 0
-        return round((done / total) * 100, 1)
+    def get_quiz_progress(self, obj) -> dict:
+        from apps.quizzes.models import Attempt, Quiz
+
+        total = Quiz.objects.filter(course=obj.course, is_active=True).count()
+        passed = (
+            Attempt.objects.filter(
+                quiz__course=obj.course,
+                student=obj.student,
+                passed=True,
+                finished_at__isnull=False,
+            )
+            .values("quiz_id")
+            .distinct()
+            .count()
+        )
+        return {"total": total, "passed": passed}
 
 
 class EnrollmentCreateSerializer(serializers.ModelSerializer):
@@ -69,13 +57,26 @@ class EnrollmentCreateSerializer(serializers.ModelSerializer):
         fields = ("course",)
 
 
-class EnrollmentDetailSerializer(EnrollmentSerializer):
-    lesson_progresses = LessonProgressSerializer(many=True, read_only=True)
+class CertificateSerializer(serializers.ModelSerializer):
+    course_title = serializers.CharField(source="course.title", read_only=True)
+    course_slug = serializers.SlugField(source="course.slug", read_only=True)
+    download_url = serializers.SerializerMethodField()
 
-    class Meta(EnrollmentSerializer.Meta):
-        fields = EnrollmentSerializer.Meta.fields + ("lesson_progresses",)
+    class Meta:
+        model = Certificate
+        fields = (
+            "id",
+            "course_title",
+            "course_slug",
+            "is_ready",
+            "generated_at",
+            "download_url",
+        )
 
-
-class CompleteLessonSerializer(serializers.Serializer):
-    lesson_id = serializers.IntegerField()
-    time_spent_seconds = serializers.IntegerField(min_value=0, default=0)
+    def get_download_url(self, obj) -> str | None:
+        if not obj.is_ready or not obj.pdf_file:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(f"/api/v1/certificates/{obj.id}/download/")
+        return None

@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from rest_framework import serializers
 
-from apps.users.models import CustomUser, UserProfile
+from apps.users.models import CustomUser, Roles
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -50,6 +50,7 @@ class LoginSerializer(serializers.Serializer):
 class TokenPairSerializer(serializers.Serializer):
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
 
 
 class LogoutSerializer(serializers.Serializer):
@@ -60,30 +61,41 @@ class MessageSerializer(serializers.Serializer):
     detail = serializers.CharField(read_only=True)
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserProfile
-        fields = ("phone", "country", "linkedin_url", "notification_preferences")
-
-
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(required=False)
+    class Meta:
+        model = CustomUser
+        fields = ("id", "email", "full_name", "role")
+        read_only_fields = ("id", "email", "role")
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    """Serializer for admin CRUD — includes password write."""
+
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = CustomUser
-        fields = ("email", "full_name", "role", "avatar", "bio", "profile")
-        read_only_fields = ("email", "role")
+        fields = ("id", "email", "full_name", "role", "is_active", "password")
+        read_only_fields = ("id",)
+
+    def validate_role(self, value):
+        if value not in (Roles.INSTRUCTOR, Roles.ADMIN):
+            raise serializers.ValidationError(
+                "Admin can only create INSTRUCTOR or ADMIN users."
+            )
+        return value
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        return CustomUser.objects.create_user(**validated_data, password=password)
 
     def update(self, instance, validated_data):
-        profile_data = validated_data.pop("profile", None)
+        password = validated_data.pop("password", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
         instance.save()
-        if profile_data is not None:
-            profile, _ = UserProfile.objects.get_or_create(user=instance)
-            for attr, value in profile_data.items():
-                setattr(profile, attr, value)
-            profile.save()
         return instance
 
 

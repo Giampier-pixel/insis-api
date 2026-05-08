@@ -14,7 +14,6 @@ from django.db.models import (
     When,
 )
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -63,7 +62,7 @@ class QuizViewSet(viewsets.GenericViewSet):
     serializer_class = QuizListSerializer
 
     def get_queryset(self):
-        return Quiz.objects.select_related("course", "lesson").all()
+        return Quiz.objects.select_related("course").all()
 
     # GET /quizzes/{id}/
     def retrieve(self, request, pk=None):
@@ -151,12 +150,6 @@ class QuizViewSet(viewsets.GenericViewSet):
             )
             count = existing.count()
 
-            if quiz.max_attempts and count >= quiz.max_attempts:
-                return Response(
-                    {"detail": f"Maximum attempts ({quiz.max_attempts}) reached."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             in_progress = existing.filter(finished_at__isnull=True).first()
             if in_progress:
                 return Response(AttemptSerializer(in_progress).data)
@@ -197,18 +190,20 @@ class QuizViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if quiz.time_limit_minutes:
-            elapsed = (timezone.now() - attempt.started_at).total_seconds() / 60
-            if elapsed > quiz.time_limit_minutes:
-                return Response(
-                    {"detail": "Time limit exceeded."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
         serializer = SubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         attempt = grade_attempt(attempt, serializer.validated_data["answers"])
+
+        if attempt.passed:
+            from apps.enrollments.models import Enrollment
+
+            enrollment = Enrollment.objects.filter(
+                student=request.user, course=quiz.course, is_active=True
+            ).first()
+            if enrollment:
+                enrollment.check_and_complete()
+
         return Response(AttemptDetailSerializer(attempt).data)
 
     # GET /quizzes/{id}/attempts/

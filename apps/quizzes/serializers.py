@@ -10,8 +10,6 @@ class OptionSerializer(serializers.ModelSerializer):
 
 
 class OptionPublicSerializer(serializers.ModelSerializer):
-    """Strips is_correct for students."""
-
     class Meta:
         model = Option
         fields = ("id", "text", "order")
@@ -80,11 +78,8 @@ class QuizListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "course",
-            "lesson",
             "title",
             "description",
-            "time_limit_minutes",
-            "max_attempts",
             "passing_score",
             "is_active",
             "question_count",
@@ -102,11 +97,8 @@ class QuizDetailSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "course",
-            "lesson",
             "title",
             "description",
-            "time_limit_minutes",
-            "max_attempts",
             "passing_score",
             "is_active",
             "questions",
@@ -127,25 +119,7 @@ class QuizDetailSerializer(serializers.ModelSerializer):
 class QuizWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz
-        fields = (
-            "course",
-            "lesson",
-            "title",
-            "description",
-            "time_limit_minutes",
-            "max_attempts",
-            "passing_score",
-            "is_active",
-        )
-
-    def validate(self, data):
-        lesson = data.get("lesson") or getattr(self.instance, "lesson", None)
-        course = data.get("course") or getattr(self.instance, "course", None)
-        if lesson and course and lesson.course_id != course.pk:
-            raise serializers.ValidationError(
-                {"lesson": "Lesson does not belong to the selected course."}
-            )
-        return data
+        fields = ("course", "title", "description", "passing_score", "is_active")
 
     def validate_passing_score(self, value):
         if value < 0 or value > 100:

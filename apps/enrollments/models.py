@@ -6,10 +6,6 @@ from apps.core.models import SoftDeleteModel, TimestampedModel
 
 
 class Enrollment(TimestampedModel, SoftDeleteModel):
-    class Source(models.TextChoices):
-        DIRECT = "DIRECT", "Direct"
-        B2B_ASSIGNMENT = "B2B_ASSIGNMENT", "B2B Assignment"
-
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -20,21 +16,10 @@ class Enrollment(TimestampedModel, SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="enrollments",
     )
-    source = models.CharField(
-        max_length=20, choices=Source.choices, default=Source.DIRECT
-    )
-    course_assignment = models.ForeignKey(
-        "assignments.CourseAssignment",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="enrollments",
-    )
     enrolled_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
-    notified_completion_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Enrollment"
@@ -45,32 +30,67 @@ class Enrollment(TimestampedModel, SoftDeleteModel):
     def __str__(self):
         return f"{self.student.email} → {self.course.title}"
 
-    def mark_completed(self):
-        if not self.completed:
+    def check_and_complete(self):
+        """Mark enrollment as completed when all active quizzes are passed."""
+        if self.completed:
+            return False
+
+        from apps.quizzes.models import Attempt, Quiz
+
+        quizzes = Quiz.objects.filter(course=self.course, is_active=True)
+        total = quizzes.count()
+        if total == 0:
+            return False
+
+        passed_quiz_ids = (
+            Attempt.objects.filter(
+                quiz__in=quizzes,
+                student=self.student,
+                passed=True,
+                finished_at__isnull=False,
+            )
+            .values_list("quiz_id", flat=True)
+            .distinct()
+        )
+
+        if set(passed_quiz_ids) >= set(quizzes.values_list("id", flat=True)):
             self.completed = True
             self.completed_at = timezone.now()
             self.save(update_fields=["completed", "completed_at"])
 
+            from apps.notifications.tasks import generate_certificate, send_completion_email
 
-class LessonProgress(TimestampedModel):
-    enrollment = models.ForeignKey(
+            generate_certificate.delay(self.pk)
+            send_completion_email.delay(self.pk)
+            return True
+
+        return False
+
+
+class Certificate(TimestampedModel):
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="certificates",
+    )
+    course = models.ForeignKey(
+        "courses.Course",
+        on_delete=models.PROTECT,
+        related_name="certificates",
+    )
+    enrollment = models.OneToOneField(
         Enrollment,
         on_delete=models.CASCADE,
-        related_name="lesson_progresses",
+        related_name="certificate",
     )
-    lesson = models.ForeignKey(
-        "courses.Lesson",
-        on_delete=models.CASCADE,
-        related_name="progresses",
-    )
-    completed = models.BooleanField(default=False)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    time_spent_seconds = models.PositiveIntegerField(default=0)
+    pdf_file = models.FileField(upload_to="certificates/", null=True, blank=True)
+    generated_at = models.DateTimeField(null=True, blank=True)
+    is_ready = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = "Lesson Progress"
-        verbose_name_plural = "Lesson Progresses"
-        unique_together = [("enrollment", "lesson")]
+        verbose_name = "Certificate"
+        verbose_name_plural = "Certificates"
+        ordering = ["-generated_at"]
 
     def __str__(self):
-        return f"{self.enrollment} — {self.lesson.title}"
+        return f"{self.student.email} — {self.course.title}"

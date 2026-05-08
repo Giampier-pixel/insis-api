@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.core.models import TimestampedModel
@@ -11,17 +10,8 @@ class Quiz(TimestampedModel):
         on_delete=models.PROTECT,
         related_name="quizzes",
     )
-    lesson = models.ForeignKey(
-        "courses.Lesson",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="quizzes",
-    )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    time_limit_minutes = models.PositiveIntegerField(null=True, blank=True)
-    max_attempts = models.PositiveIntegerField(null=True, blank=True)
     passing_score = models.DecimalField(max_digits=5, decimal_places=2, default=60.00)
     is_active = models.BooleanField(default=True)
 
@@ -39,13 +29,6 @@ class Quiz(TimestampedModel):
 
     def __str__(self):
         return self.title
-
-    def clean(self):
-        if self.lesson_id and self.course_id:
-            if self.lesson.course_id != self.course_id:
-                raise ValidationError(
-                    {"lesson": "Lesson does not belong to the selected course."}
-                )
 
 
 class Question(TimestampedModel):
@@ -98,7 +81,6 @@ class Attempt(TimestampedModel):
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     passed = models.BooleanField(null=True, blank=True)
     attempt_number = models.PositiveIntegerField()
-    notified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Attempt"
