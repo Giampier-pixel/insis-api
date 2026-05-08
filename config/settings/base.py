@@ -194,17 +194,26 @@ SPECTACULAR_SETTINGS = {
 # ============================================================
 # Celery
 # ============================================================
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
+import ssl as _ssl
+
+_broker = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
+CELERY_BROKER_URL = _broker
+CELERY_RESULT_BACKEND = _broker
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 300  # 5 minutes hard limit
-CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes soft limit
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 240
 CELERY_TASK_PUBLISH_RETRY = False
-CELERY_BROKER_CONNECTION_TIMEOUT = 2
+CELERY_BROKER_CONNECTION_TIMEOUT = 5
+
+# Upstash uses rediss:// (TLS) — disable cert verification to avoid hostname issues
+if _broker.startswith("rediss://"):
+    _ssl_opts = {"ssl_cert_reqs": _ssl.CERT_NONE}
+    CELERY_BROKER_USE_SSL = _ssl_opts
+    CELERY_REDIS_BACKEND_USE_SSL = _ssl_opts
 
 # ============================================================
 # Email — Resend

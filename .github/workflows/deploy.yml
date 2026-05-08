@@ -9,6 +9,7 @@ env:
   REGION: us-central1
   IMAGE: us-central1-docker.pkg.dev/inisis-api/insis-repo/insis-api
   SERVICE: insis-api
+  WORKER: insis-celery-worker
   JOB: migrate-job
 
 jobs:
@@ -55,9 +56,21 @@ jobs:
             --region=${{ env.REGION }} \
             --wait
 
-      - name: Deploy to Cloud Run
+      - name: Deploy API to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE }} \
             --image=${{ env.IMAGE }}:${{ github.sha }} \
             --region=${{ env.REGION }} \
-            --platform=managed
+            --platform=managed \
+            --update-secrets="RESEND_API_KEY=RESEND_API_KEY:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest"
+
+      - name: Deploy Celery Worker to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.WORKER }} \
+            --image=${{ env.IMAGE }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --command="/worker-start.sh" \
+            --min-instances=1 \
+            --no-cpu-throttling \
+            --update-secrets="RESEND_API_KEY=RESEND_API_KEY:latest,CELERY_BROKER_URL=CELERY_BROKER_URL:latest"

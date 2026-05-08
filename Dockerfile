@@ -48,9 +48,10 @@ RUN SECRET_KEY=build-placeholder \
     ALLOWED_HOSTS=* \
     python manage.py collectstatic --noinput 2>/dev/null || true
 
-# Entrypoint
+# Entrypoints
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY worker-start.sh /worker-start.sh
+RUN chmod +x /entrypoint.sh /worker-start.sh
 
 # Usuario no-root
 RUN addgroup --system appgroup && \
